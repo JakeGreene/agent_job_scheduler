@@ -11,6 +11,9 @@ class Object:
 
     def add_to_slot(self, slot: 'EnvSlot') -> bool:
         pass
+
+    def remove_from_slot(self, slot: 'EnvSlot') -> None:
+        pass
     
 
 class Wall(Object):
@@ -22,6 +25,9 @@ class Wall(Object):
     
     def add_to_slot(self, slot: 'EnvSlot') -> bool:
         return slot.add_wall(self)
+    
+    def remove_from_slot(self, slot: 'EnvSlot') -> None:
+        slot.remove_wall()
 
 
 class Resource(Object):
@@ -34,6 +40,9 @@ class Resource(Object):
     def add_to_slot(self, slot: 'EnvSlot') -> bool:
         return slot.add_resource(self)
     
+    def remove_from_slot(self, slot: 'EnvSlot') -> None:
+        slot.remove_resource()
+    
     
 class Agent(Object):
     def __init__(self):
@@ -45,6 +54,9 @@ class Agent(Object):
     def add_to_slot(self, slot: 'EnvSlot') -> bool:
         return slot.add_agent(self)
     
+    def remove_from_slot(self, slot: 'EnvSlot') -> None:
+        slot.remove_agent(self)
+    
     
 class JobSite(Object):
     def __init__(self):
@@ -55,6 +67,9 @@ class JobSite(Object):
     
     def add_to_slot(self, slot: 'EnvSlot') -> bool:
         return slot.add_job_site(self)
+    
+    def remove_from_slot(self, slot: 'EnvSlot') -> None:
+        slot.remove_jobs_site()
 
 
 class EnvSlot():
@@ -112,7 +127,7 @@ class EnvSlot():
             return True
         return False
     
-    def remove_jobs_ite(self) -> None:
+    def remove_jobs_site(self) -> None:
         self._all.remove(self._job_site)
         self._job_site = None
 
@@ -144,7 +159,7 @@ class Environment():
     def remove(self, o: Object) -> bool:
         if o in self.location_of:
             r,c = self.location_of[o]
-            self._grid[r][c].remove(o)
+            o.remove_from_slot(self._grid[r][c])
             del self.location_of[o]
             return True
         return False
@@ -219,30 +234,52 @@ def find_path(env: Environment, start: Location, goal: Location, heuristic: typi
 
 
 def main():
-    # n_rows, n_columns = 2, 5
-    # env = Environment(n_rows, n_columns)
-    # path, cost = find_path(env, (0, 0), (0, 4))
-    # print(path, cost)
-
-    # n_rows, n_columns = 2, 5
-    # env = Environment(n_rows, n_columns)
-    # env.add(Wall(), (0, 2))
-    # path, cost = find_path(env, (0, 0), (0, 4))
-    # print(path, cost)
-
-    # n_rows, n_columns = 2, 5
-    # env = Environment(n_rows, n_columns)
-    # env.add(Wall(), (0, 2))
-    # env.add(Agent(), (1, 2)) # Should be passable
-    # path, cost = find_path(env, (0, 0), (0, 4))
-    # print(path, cost)
-
     n_rows, n_columns = 2, 5
     env = Environment(n_rows, n_columns)
-    env.add(Wall(), (0, 2))
-    env.add(Wall(), (1, 2)) # Completely walled off
-    path, cost = find_path(env, (0, 0), (0, 4))
-    print(path, cost)
+    # w = Wall()
+    # print("Adding a wall", env.add(w, (1, 1)))
+    # print("Is it there?", env.get((1,1)).is_wall())
+    # print("Is it there?", env.get((1,1)).objects())
+    # print("Removing Wall", env.remove(w))
+    # print("Is it there?", env.get((1,1)).is_wall())
+
+    # r = Resource()
+    # print("Adding a resource", env.add(r, (1, 1)))
+    # print("Is it there?", env.get((1,1)).objects())
+    # print("Removing resource", env.remove(r))
+    # print("Is it there?", env.get((1,1)).objects())
+
+    # j = JobSite()
+    # print("Adding a site", env.add(j, (1, 1)))
+    # print("Is it there?", env.get((1,1)).objects())
+    # print("Removing site", env.remove(j))
+    # print("Is it there?", env.get((1,1)).objects())
+
+    # a = Agent()
+    # print("Adding an agent", env.add(a, (1, 1)))
+    # print("Is it there?", env.get((1,1)).objects())
+    # print("Removing agent", env.remove(a))
+    # print("Is it there?", env.get((1,1)).objects())
+
+    # w1 = Wall()
+    # print("Adding a wall", env.add(w1, (1, 1)))
+    # print("Is it there?", env.get((1,1)).is_wall())
+    # print("Is it there?", env.get((1,1)).objects())
+    # w2 = Wall()
+    # print("Trying to add another wall", env.add(w2, (1,1)))
+    # print("What is there?", env.get((1,1)).objects())
+
+    # a1 = Agent()
+    # print("Adding an agent a1", env.add(a1, (1, 1)))
+    # print("Is it there?", env.get((1,1)).objects())
+    # a2 = Agent()
+    # print("Adding an agent a2", env.add(a2, (1, 1)))
+    # print("Are they there?", env.get((1,1)).objects())
+    # print("Removing agent a1", env.remove(a1))
+    # print("What is there?", env.get((1,1)).objects())
+    # print("Removing agent a2", env.remove(a2))
+    # print("What is there?", env.get((1,1)).objects())
+
 
 if __name__ == "__main__":
     main()
