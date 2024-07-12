@@ -1,5 +1,8 @@
 import numpy as np
 from collections import defaultdict
+from queue import PriorityQueue
+import typing
+import math
 
 class Object:
     def passable(self) -> bool:
@@ -25,6 +28,14 @@ class Dummy(Object):
     
     def __repr__ (self) -> str:
         return self._name
+    
+
+class Wall(Object):
+    def __init__(self):
+        pass
+
+    def passable(self) -> bool:
+        return False
 
 
 Location = tuple[int, int]
@@ -80,48 +91,76 @@ class Environment():
         locs = [(r+1, c), (r-1, c), (r, c+1), (r, c-1)]
         locs = list(filter(self.in_bounds, locs))
         return locs
+    
+
+    def passable(self, loc: Location):
+        objects = self.get(loc)
+        for o in objects:
+            if not o.passable():
+                return False
+        return True
 
     # TODO create a string repr of the grid and the objects in it. Requires objects to have a single char repr
 
 
+def manhatten_heuristic(a: Location, b: Location) -> float:
+    a_row, a_col = a
+    b_row, b_col = b
+    return abs(a_row - b_row) + abs(a_col - b_col)
+
+
+def find_path(env: Environment, start: Location, goal: Location, heuristic: typing.Callable[[Location, Location], float] = manhatten_heuristic) -> tuple[list[Location], float]:
+    '''Find a path between start and goal if one exists. Uses A*'''
+    # For the most part, copy pasted from https://www.redblobgames.com/pathfinding/a-star/implementation.html
+    frontier = PriorityQueue()
+    frontier.put((0, start))
+    came_from: dict[Location, typing.Optional[Location]] = {}
+    cost_so_far: dict[Location, float] = {}
+    came_from[start] = None
+    cost_so_far[start] = 0
+    
+    while not frontier.empty():
+        current: Location = frontier.get()[1]
+        if current == goal:
+            break
+        
+        for next in env.neighbours(current):
+            if env.passable(next):
+                new_cost = cost_so_far[current] + 1 # env.cost(current, next) # XXX I am currently assuming the cost of movement is always 1
+                if next not in cost_so_far or new_cost < cost_so_far[next]:
+                    cost_so_far[next] = new_cost
+                    priority = new_cost + heuristic(next, goal)
+                    frontier.put((priority, next))
+                    came_from[next] = current
+    if goal in came_from:
+        path = []
+        prev = goal
+        while prev:
+            path.append(prev)
+            prev = came_from[prev]
+        path.reverse()
+        return path, cost_so_far[goal]
+    return ([], math.inf)
+
 
 def main():
-    n_rows, n_columns = 10, 10
+    # n_rows, n_columns = 2, 5
+    # env = Environment(n_rows, n_columns)
+    # path, cost = find_path(env, (0, 0), (0, 4))
+    # print(path, cost)
+
+    # n_rows, n_columns = 2, 5
+    # env = Environment(n_rows, n_columns)
+    # env.add(Wall(), (0, 2))
+    # path, cost = find_path(env, (0, 0), (0, 4))
+    # print(path, cost)
+
+    n_rows, n_columns = 2, 5
     env = Environment(n_rows, n_columns)
-    test_bounds_points = [(0, 0), (-1, 0), (0, -1), (0, n_columns-1), (n_rows-1, 0), (n_rows-1, n_columns-1), (n_rows, n_columns-1), (n_rows-1, n_columns), (n_rows, n_columns)]
-    for l in test_bounds_points:
-        print(f"Is {l} in bounds?", env.in_bounds(l))
-
-    # d = Dummy(name="Dummy", passable=False)
-    # l = (0, 0)
-    # print("Adding Dummy", env.add(d, l))
-    # print("Is Dummy there?", env.get(l))
-    # print("Removing Dummy", env.remove(d))
-    # print("Is Dummy there?", env.get(l))
-    # print("Adding Dummy", env.add(d, l))
-    # l2 = (l[0]+1, l[1]+1)
-    # print("Moving Dummy", env.move(d, l2))
-    # print("Is Dummy where it started?", env.get(l))
-    # print("Is Dummy where it was moved to?", env.get(l2))
-
-    # d1 = Dummy(name="Dummy1", passable=True)
-    # l = (0, 0)
-    # print("Adding Dummy1", env.add(d1, l))
-    # d2 = Dummy(name="Dummy2", passable=True)
-    # print("Adding Dummy2", env.add(d2, l))
-    # print("Who is at the location?", env.get(l))
-    # # print("Is Dummy there?", env.get(l))
-    # # print("Removing Dummy", env.remove(d))
-    # l2 = (1, 1)
-    # print("Moving d1", env.move(d1, l2))
-    # print(f"Who is at {l}?", env.get(l))
-    # print(f"Who is at {l2}?", env.get(l2))
-
-    # mid_row = n_rows // 2
-    # mid_col = n_columns // 2
-    # test_spots = [(0, 0), (0, n_columns-1), (n_rows-1, 0), (n_rows-1, n_columns-1), (mid_row, mid_col), (mid_row, 0), (0, mid_col)]
-    # for loc in test_spots:
-    #     print(f"Neighbouts of {loc}", env.neighbours(loc))
+    env.add(Wall(), (0, 2))
+    env.add(Wall(), (1, 2)) # Completely walled off
+    path, cost = find_path(env, (0, 0), (0, 4))
+    print(path, cost)
 
 if __name__ == "__main__":
     main()
