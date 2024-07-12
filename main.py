@@ -9,25 +9,8 @@ class Object:
         '''Can another object move through a space containing this object?'''
         pass
 
-
-# XXX Does this need to be a first class citizen?
-class EmptySpace(Object):
-    def passable(self) -> bool:
-        return True
-    
-
-class Dummy(Object):
-    '''The Dummy class exists only to populate the environment with test objects
-    '''
-    def __init__(self, name, passable):
-        self._name = name
-        self._passable = passable
-
-    def passable(self) -> bool:
-        return self._passable
-    
-    def __repr__ (self) -> str:
-        return self._name
+    def add_to_slot(self, slot: 'EnvSlot') -> bool:
+        pass
     
 
 class Wall(Object):
@@ -36,6 +19,105 @@ class Wall(Object):
 
     def passable(self) -> bool:
         return False
+    
+    def add_to_slot(self, slot: 'EnvSlot') -> bool:
+        return slot.add_wall(self)
+
+
+class Resource(Object):
+    def __init__(self):
+        pass
+
+    def passable(self) -> bool:
+        return True
+    
+    def add_to_slot(self, slot: 'EnvSlot') -> bool:
+        return slot.add_resource(self)
+    
+    
+class Agent(Object):
+    def __init__(self):
+        pass
+
+    def passable(self) -> bool:
+        return True
+    
+    def add_to_slot(self, slot: 'EnvSlot') -> bool:
+        return slot.add_agent(self)
+    
+    
+class JobSite(Object):
+    def __init__(self):
+        pass
+
+    def passable(self):
+        return True
+    
+    def add_to_slot(self, slot: 'EnvSlot') -> bool:
+        return slot.add_job_site(self)
+
+
+class EnvSlot():
+    '''A space in the environment. This space is opinionated about what can be in it under different conditions'''
+    def __init__(self):
+        self._wall: typing.Optional[Wall] = None
+        self._resource: typing.Optional[Resource] = None
+        self._agents: set[Agent] = set()
+        self._job_site: typing.Optional[JobSite] = None
+        self._all = set()
+
+    def is_wall(self) -> bool:
+        return self._wall is not None
+
+    def is_empty(self) -> bool:
+        return self._wall is None and self._resource is None and len(self._agents) == 0 and self._job_site is None
+
+    def add_wall(self, wall: Wall) -> bool:
+        if self.is_empty():
+            self._wall = wall
+            self._all.add(wall)
+            return True
+        return False
+    
+    def remove_wall(self) -> None:
+        self._all.remove(self._wall)
+        self._wall = None
+    
+    def add_resource(self, resource: Resource) -> bool:
+        if not self.is_wall() and self._resource is None:
+            self._resource = resource
+            self._all.add(resource)
+            return True
+        return False
+    
+    def remove_resource(self) -> None:
+        self._all.remove(self._resource)
+        self._resource = None
+    
+    def add_agent(self, agent: Agent) -> bool:
+        if not self.is_wall():
+            self._agents.add(agent)
+            self._all.add(agent)
+            return True
+        return False
+    
+    def remove_agent(self, agent: Agent) -> None:
+        self._all.remove(agent)
+        self._agents.remove(agent)
+    
+    def add_job_site(self, job_site: JobSite) -> bool:
+        if not self.is_wall() and self._job_site is None:
+            self._job_site = job_site
+            self._all.add(job_site)
+            return True
+        return False
+    
+    def remove_jobs_ite(self) -> None:
+        self._all.remove(self._job_site)
+        self._job_site = None
+
+    def objects(self) -> set[Object]:
+        return self._all
 
 
 Location = tuple[int, int]
@@ -43,25 +125,21 @@ Location = tuple[int, int]
 
 class Environment():
     def __init__(self, n_rows, n_columns) -> None:
-        self._grid = defaultdict(lambda: defaultdict(set))
+        self._grid = defaultdict(lambda: defaultdict(lambda: EnvSlot()))
         self.location_of = {}
         self.n_rows = n_rows
         self.n_cols = n_columns
-
     
     def in_bounds(self, loc: Location) -> bool:
         r, c = loc
         return 0 <= r < self.n_rows and 0 <= c < self.n_cols
 
-
     def add(self, o: Object, loc: Location) -> bool:
         row, col = loc
         if o not in self.location_of and self.in_bounds(loc):
-            self._grid[row][col].add(o)
-            self.location_of[o] = (row, col)
-            return True
+            self.location_of[o] = loc
+            return o.add_to_slot(self._grid[row][col])   
         return False # XXX Raise an error if this happens instead of using booleans
-
 
     def remove(self, o: Object) -> bool:
         if o in self.location_of:
@@ -71,7 +149,6 @@ class Environment():
             return True
         return False
 
-
     def move(self, o: Object, loc: Location) -> bool:
         removed = self.remove(o)
         if removed:
@@ -79,22 +156,20 @@ class Environment():
             return self.add(o, loc)
         return False
 
-
-    def get(self, loc: Location) -> set[Object]:
+    def get(self, loc: Location) -> EnvSlot:
         row, col = loc
         # XXX Should I check if loc is in bounds?
         return self._grid[row][col]
-
 
     def neighbours(self, loc: Location) -> list[Location]:
         r, c = loc
         locs = [(r+1, c), (r-1, c), (r, c+1), (r, c-1)]
         locs = list(filter(self.in_bounds, locs))
-        return locs
-    
+        return locs  
 
     def passable(self, loc: Location):
-        objects = self.get(loc)
+        # XXX Should all locations out of bounds be impassable?
+        objects = self.get(loc).objects()
         for o in objects:
             if not o.passable():
                 return False
@@ -152,6 +227,13 @@ def main():
     # n_rows, n_columns = 2, 5
     # env = Environment(n_rows, n_columns)
     # env.add(Wall(), (0, 2))
+    # path, cost = find_path(env, (0, 0), (0, 4))
+    # print(path, cost)
+
+    # n_rows, n_columns = 2, 5
+    # env = Environment(n_rows, n_columns)
+    # env.add(Wall(), (0, 2))
+    # env.add(Agent(), (1, 2)) # Should be passable
     # path, cost = find_path(env, (0, 0), (0, 4))
     # print(path, cost)
 
